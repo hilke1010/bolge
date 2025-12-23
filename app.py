@@ -45,7 +45,7 @@ def load_data():
 
 df = load_data()
 
-# --- MAKİNA ANALİZİ RAPORU (GÜNCELLENDİ: ADF ARTIK GELECEK YILA ODAKLI) ---
+# --- MAKİNA ANALİZİ RAPORU ---
 def create_machine_analysis_report(data):
     if data is None or data.empty:
         return
@@ -85,11 +85,10 @@ def create_machine_analysis_report(data):
 
     st.markdown("---")
 
-    # 2. BÖLÜM: ADF ANALİZİ (SADECE GELECEK YIL İÇİN)
+    # 2. BÖLÜM: ADF ANALİZİ
     st.markdown(f"#### 2. {next_year} Yılında Bitecek Sözleşmelerin ADF Analizi")
     
     if 'ADF' in next_year_data.columns:
-        # Sadece gelecek yılın verisini sayıyoruz
         adf_counts = next_year_data['ADF'].value_counts()
         unique_adf = len(adf_counts)
         top_adf = adf_counts.index[0]
@@ -100,14 +99,12 @@ def create_machine_analysis_report(data):
         with col1:
             st.write(f"Gelecek yıl ({next_year}) sona erecek olan **{total_next}** sözleşmenin ADF (Ürün/Segment) kırılımı şöyledir:")
             
-            # Dinamik Yorum
             st.markdown(f"""
             *   **Baskın Grup:** Gelecek yıl en çok **{top_adf}** grubuna ait sözleşmeler ({top_adf_count} adet) sona erecektir.
-            *   **Risk Oranı:** Yıl genelindeki bitişlerin **%{top_adf_ratio:.1f}**'lik kısmı tek başına bu gruba aittir. Yenileme stratejisi bu ADF koduna göre kurgulanmalıdır.
+            *   **Risk Oranı:** Yıl genelindeki bitişlerin **%{top_adf_ratio:.1f}**'lik kısmı tek başına bu gruba aittir.
             *   **Çeşitlilik:** Toplamda {unique_adf} farklı ADF grubunda sözleşme bitişi gerçekleşecektir.
             """)
             
-            # Tablo
             adf_df = adf_counts.reset_index()
             adf_df.columns = ['ADF Kodu', 'Bitecek Adet']
             adf_df['Yıllık Pay (%)'] = (adf_df['Bitecek Adet'] / total_next * 100).round(1)
@@ -176,11 +173,20 @@ if df is not None:
             fig_bolge = px.pie(filtered_df, names='BÖLGE', title='Bölge Bazlı Oranlar', hole=0.4)
             st.plotly_chart(fig_bolge, use_container_width=True)
         with c2:
-            st.subheader("En Yoğun 10 İl")
-            top_cities = filtered_df['İl'].value_counts().nlargest(10).reset_index()
-            top_cities.columns = ['İl', 'Sayı']
-            fig_top_cities = px.bar(top_cities, x='İl', y='Sayı', color='Sayı', title='En Çok Bayi Olan İller')
-            st.plotly_chart(fig_top_cities, use_container_width=True)
+            # --- DÜZENLEME BURADA YAPILDI: ARTIK TÜM İLLER GELİYOR ---
+            st.subheader("İl Bazlı Bayi Dağılımı (Tümü)")
+            # 'nlargest(10)' KISMI KALDIRILDI. ARTIK TÜM LİSTE GELİYOR.
+            all_cities = filtered_df['İl'].value_counts().reset_index()
+            all_cities.columns = ['İl', 'Sayı']
+            
+            fig_all_cities = px.bar(
+                all_cities, 
+                x='İl', 
+                y='Sayı', 
+                color='Sayı', 
+                title='Tüm İllerin Bayi Sayıları (Çoktan Aza)'
+            )
+            st.plotly_chart(fig_all_cities, use_container_width=True)
         
         st.markdown("---")
         st.subheader("📊 Genel ADF (Segment) Analizi")
@@ -227,7 +233,7 @@ if df is not None:
                     fig_adf_year = px.pie(adf_year_counts, names='ADF', values='Sayı', title=f"{selected_year} Yılı ADF Dağılımı", hole=0.3)
                     st.plotly_chart(fig_adf_year, use_container_width=True)
 
-            st.info("💡 Tabloyu filtrelemek için **Aylık Grafik (Sol)** üzerindeki çubuklara tıklayınız.")
+            st.info("💡 Tabloyu filtrelemek için **Aylık Grafik (Sol)** üzerindeki çubuklara tıklayınız. Sıfırlamak için grafiğe çift tıklayınız.")
 
             table_data = year_df.copy()
             if selected_event and selected_event['selection']['points']:
