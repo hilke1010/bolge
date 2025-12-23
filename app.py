@@ -45,7 +45,7 @@ def load_data():
 
 df = load_data()
 
-# --- MAKİNA ANALİZİ RAPORU ---
+# --- MAKİNA ANALİZİ RAPORU (GÜNCELLENDİ: ADF ARTIK GELECEK YILA ODAKLI) ---
 def create_machine_analysis_report(data):
     if data is None or data.empty:
         return
@@ -54,56 +54,67 @@ def create_machine_analysis_report(data):
     current_year = today.year
     next_year = current_year + 1
     
-    st.markdown(f"### 📊 Detaylı Makina Analiz Raporu ({current_year} - {next_year})")
+    st.markdown(f"### 📊 Detaylı Makina Analiz Raporu ({next_year} Vizyonu)")
     st.markdown("---")
 
-    # 1. BÖLÜM: 2026 PROJEKSİYONU
+    # Gelecek Yıl Verisi
     next_year_data = data[data['Bitiş Yılı'] == next_year]
     total_next = len(next_year_data)
 
-    st.markdown(f"#### 1. {next_year} Yılı Sözleşme Bitiş Projeksiyonu")
+    if next_year_data.empty:
+        st.warning(f"{next_year} yılı için herhangi bir sözleşme bitiş verisi bulunamadı.")
+        return
+
+    # 1. BÖLÜM: ZAMAN VE İL ANALİZİ
+    st.markdown(f"#### 1. {next_year} Yılı Genel Projeksiyonu")
     
-    if not next_year_data.empty:
-        peak_month_idx = next_year_data['Bitiş Ayı No'].value_counts().idxmax()
-        peak_count = next_year_data['Bitiş Ayı No'].value_counts().max()
-        ay_map_tr = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
-                     7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
-        peak_month_name = ay_map_tr[peak_month_idx]
+    peak_month_idx = next_year_data['Bitiş Ayı No'].value_counts().idxmax()
+    peak_count = next_year_data['Bitiş Ayı No'].value_counts().max()
+    ay_map_tr = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
+                 7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
+    peak_month_name = ay_map_tr[peak_month_idx]
 
-        st.info(f"📅 **Zaman Dağılımı:** {next_year} yılında toplam **{total_next}** adet sözleşme sona erecektir. "
-                f"En yüksek hacim **{peak_month_name}** ayında (**{peak_count}** adet) gerçekleşmektedir.")
+    st.info(f"📅 **Zaman Analizi:** {next_year} yılında toplam **{total_next}** adet sözleşme sona erecektir. "
+            f"Operasyonel yükün zirve yapacağı dönem **{peak_month_name}** ayıdır (Toplam {peak_count} adet).")
 
-        st.markdown(f"**📍 {next_year} Yılı İl Bazlı Tam Dağılım Listesi:**")
-        city_counts = next_year_data['İl'].value_counts().reset_index()
-        city_counts.columns = ['İl Adı', 'Bitecek Sözleşme Sayısı']
-        city_counts['Bölgesel Pay (%)'] = (city_counts['Bitecek Sözleşme Sayısı'] / total_next * 100).round(1)
-        st.dataframe(city_counts, use_container_width=True, hide_index=True)
-    else:
-        st.write(f"{next_year} yılı için sistemde kayıtlı bir veri bulunmamaktadır.")
+    st.markdown(f"**📍 {next_year} Yılı İl Bazlı Risk Tablosu:**")
+    city_counts = next_year_data['İl'].value_counts().reset_index()
+    city_counts.columns = ['İl Adı', 'Bitecek Sözleşme Sayısı']
+    city_counts['Pay (%)'] = (city_counts['Bitecek Sözleşme Sayısı'] / total_next * 100).round(1)
+    st.dataframe(city_counts, use_container_width=True, hide_index=True)
 
     st.markdown("---")
 
-    # 2. BÖLÜM: ADF ANALİZİ
-    st.markdown("#### 2. ADF Kodu Segmentasyon Analizi")
-    if 'ADF' in data.columns:
-        total_records = len(data)
-        adf_counts = data['ADF'].value_counts()
+    # 2. BÖLÜM: ADF ANALİZİ (SADECE GELECEK YIL İÇİN)
+    st.markdown(f"#### 2. {next_year} Yılında Bitecek Sözleşmelerin ADF Analizi")
+    
+    if 'ADF' in next_year_data.columns:
+        # Sadece gelecek yılın verisini sayıyoruz
+        adf_counts = next_year_data['ADF'].value_counts()
         unique_adf = len(adf_counts)
         top_adf = adf_counts.index[0]
-        top_adf_ratio = (adf_counts.iloc[0] / total_records) * 100
+        top_adf_count = adf_counts.iloc[0]
+        top_adf_ratio = (top_adf_count / total_next) * 100
 
         col1, col2 = st.columns([2, 1])
         with col1:
-            st.write(f"Veri setinde toplam **{unique_adf}** farklı ADF kodu bulunmaktadır.")
-            st.write(f"En baskın segment **{top_adf}** kodudur ve portföyün **%{top_adf_ratio:.1f}**'ini oluşturmaktadır.")
+            st.write(f"Gelecek yıl ({next_year}) sona erecek olan **{total_next}** sözleşmenin ADF (Ürün/Segment) kırılımı şöyledir:")
             
+            # Dinamik Yorum
+            st.markdown(f"""
+            *   **Baskın Grup:** Gelecek yıl en çok **{top_adf}** grubuna ait sözleşmeler ({top_adf_count} adet) sona erecektir.
+            *   **Risk Oranı:** Yıl genelindeki bitişlerin **%{top_adf_ratio:.1f}**'lik kısmı tek başına bu gruba aittir. Yenileme stratejisi bu ADF koduna göre kurgulanmalıdır.
+            *   **Çeşitlilik:** Toplamda {unique_adf} farklı ADF grubunda sözleşme bitişi gerçekleşecektir.
+            """)
+            
+            # Tablo
             adf_df = adf_counts.reset_index()
-            adf_df.columns = ['ADF Kodu', 'Sayı']
-            adf_df['Oran (%)'] = (adf_df['Sayı'] / total_records * 100).round(1)
-            st.dataframe(adf_df.head(10), use_container_width=True, hide_index=True)
+            adf_df.columns = ['ADF Kodu', 'Bitecek Adet']
+            adf_df['Yıllık Pay (%)'] = (adf_df['Bitecek Adet'] / total_next * 100).round(1)
+            st.dataframe(adf_df, use_container_width=True, hide_index=True)
         
         with col2:
-            fig_adf = px.pie(adf_df, names='ADF Kodu', values='Sayı', title='ADF Genel Dağılımı', hole=0.4)
+            fig_adf = px.pie(adf_df, names='ADF Kodu', values='Bitecek Adet', title=f"{next_year} ADF Dağılımı", hole=0.4)
             st.plotly_chart(fig_adf, use_container_width=True)
     else:
         st.warning("ADF verisi bulunamadı.")
@@ -157,7 +168,7 @@ if df is not None:
     # SEKME YAPISI
     tab1, tab2, tab3 = st.tabs(["📍 Grafikler", "📅 Sözleşme Takip", "🧠 Makina Analizi"])
 
-    # --- TAB 1: GRAFİKLER (GENEL ADF EKLENDİ) ---
+    # --- TAB 1: GRAFİKLER ---
     with tab1:
         c1, c2 = st.columns(2)
         with c1:
@@ -171,7 +182,6 @@ if df is not None:
             fig_top_cities = px.bar(top_cities, x='İl', y='Sayı', color='Sayı', title='En Çok Bayi Olan İller')
             st.plotly_chart(fig_top_cities, use_container_width=True)
         
-        # --- YENİ EKLENEN KISIM: GENEL ADF GRAFİĞİ ---
         st.markdown("---")
         st.subheader("📊 Genel ADF (Segment) Analizi")
         if 'ADF' in filtered_df.columns:
@@ -182,7 +192,7 @@ if df is not None:
         else:
             st.warning("ADF Sütunu bulunamadı.")
 
-    # --- TAB 2: SÖZLEŞME TAKİP (YILLIK ADF EKLENDİ) ---
+    # --- TAB 2: SÖZLEŞME TAKİP ---
     with tab2:
         st.subheader("📅 Yıllık ve Aylık Sözleşme Takibi")
 
@@ -199,12 +209,10 @@ if df is not None:
             with c_info:
                 st.metric(f"{selected_year} Toplam Sözleşme", f"{total_in_year} Adet")
             
-            # --- YENİ EKLENEN KISIM: SEÇİLEN YIL İÇİN ADF ANALİZİ ---
             st.markdown(f"#### 🔍 {selected_year} Yılı Özel ADF Analizi")
             col_g1, col_g2 = st.columns([2, 1])
             
             with col_g1:
-                # Aylık Grafik
                 monthly_counts = year_df.groupby(['Bitiş Ayı No', 'Bitiş Ayı Adı']).size().reset_index(name='Sayi')
                 monthly_counts = monthly_counts.sort_values('Bitiş Ayı No')
                 fig_monthly = px.bar(monthly_counts, x='Bitiş Ayı Adı', y='Sayi', text='Sayi', title=f"{selected_year} Aylık Sözleşme Bitişleri", color='Sayi')
@@ -213,17 +221,14 @@ if df is not None:
                 selected_event = st.plotly_chart(fig_monthly, use_container_width=True, on_select="rerun")
             
             with col_g2:
-                # O yılın ADF Grafiği
                 if 'ADF' in year_df.columns:
                     adf_year_counts = year_df['ADF'].value_counts().reset_index()
                     adf_year_counts.columns = ['ADF', 'Sayı']
-                    fig_adf_year = px.pie(adf_year_counts, names='ADF', values='Sayı', title=f"{selected_year} Yılında Bitenlerin ADF Dağılımı", hole=0.3)
+                    fig_adf_year = px.pie(adf_year_counts, names='ADF', values='Sayı', title=f"{selected_year} Yılı ADF Dağılımı", hole=0.3)
                     st.plotly_chart(fig_adf_year, use_container_width=True)
-            # --------------------------------------------------------
 
             st.info("💡 Tabloyu filtrelemek için **Aylık Grafik (Sol)** üzerindeki çubuklara tıklayınız.")
 
-            # Tablo Filtreleme
             table_data = year_df.copy()
             if selected_event and selected_event['selection']['points']:
                 tiklanan_ay = selected_event['selection']['points'][0]['x']
