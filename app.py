@@ -5,10 +5,10 @@ from datetime import datetime
 import io
 
 # Sayfa Ayarları
-st.set_page_config(page_title="Bayi Strateji Paneli", layout="wide", page_icon="🤖")
+st.set_page_config(page_title="Bayi Makina Analizi", layout="wide", page_icon="🤖")
 
 # Başlık
-st.title("🤖 Bayi Veri Analizi ve Gelecek Öngörü Sistemi")
+st.title("🤖 Bayi Veri ve Makina Analizi")
 st.markdown("---")
 
 # 1. VERİ YÜKLEME
@@ -31,7 +31,7 @@ def load_data():
             df['Kalan Gün'] = (df['Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi'] - today).dt.days
             df['Bitiş Yılı'] = df['Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi'].dt.year
             
-            # Türkçe Ay İsimleri (Manuel Map - Garanti Çözüm)
+            # Türkçe Ay İsimleri
             ay_map_tr = {
                 1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
                 7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'
@@ -46,8 +46,8 @@ def load_data():
 
 df = load_data()
 
-# --- YENİ: GELİŞMİŞ ÖNGÖRÜ MOTORU (NOKTA ATIŞI TARİHLER) ---
-def create_advanced_prediction_report(data):
+# --- GELİŞTİRİLMİŞ MAKİNA ANALİZİ RAPORU ---
+def create_machine_analysis_report(data):
     if data is None or data.empty:
         return
 
@@ -55,75 +55,101 @@ def create_advanced_prediction_report(data):
     current_year = today.year
     next_year = current_year + 1
     
-    st.markdown(f"### 🔮 Gelecek Simülasyonu ve Stratejik Öngörüler ({current_year}-{next_year})")
+    st.markdown(f"### 📊 Detaylı Makina Analiz Raporu ({current_year} - {next_year})")
     st.markdown("---")
 
-    # 1. GELECEK YIL ANALİZİ (2026 vb.)
+    # 1. BÖLÜM: GELECEK YIL (2026) DETAYLI PROJEKSİYONU
     next_year_data = data[data['Bitiş Yılı'] == next_year]
-    
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown(f"#### 📅 {next_year} Yılı Kritik Tarihler")
-        if not next_year_data.empty:
-            # En yoğun ayı bul
-            peak_month_idx = next_year_data['Bitiş Ayı No'].value_counts().idxmax()
-            peak_count = next_year_data['Bitiş Ayı No'].value_counts().max()
-            
-            # Ay ismini bul
-            ay_map_tr = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
-                         7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
-            peak_month_name = ay_map_tr[peak_month_idx]
-            
-            total_next = len(next_year_data)
-            
-            st.error(f"🚨 **En Kritik Dönem:** {next_year} yılında operasyonel yük **{peak_month_name}** ayında zirve yapacak.")
-            st.markdown(f"""
-            - **{next_year} Toplam Bitiş:** {total_next} adet sözleşme.
-            - **Zirve Noktası:** Sadece **{peak_month_name} {next_year}** döneminde **{peak_count}** adet sözleşme (Yıllık yükün %{int(peak_count/total_next*100)}'si) bitecek.
-            - **Aksiyon:** {peak_month_name} ayından en az 3 ay önce saha ekibi planlaması yapılmalı.
-            """)
-        else:
-            st.success(f"✅ {next_year} yılı için henüz sisteme girilmiş riskli bir sözleşme bitişi bulunmuyor.")
+    total_next = len(next_year_data)
 
-    with col2:
-        st.markdown(f"#### 📍 {next_year} Yılında Hangi Şehirler Riskli?")
-        if not next_year_data.empty:
-            top_city = next_year_data['İl'].value_counts().head(1)
-            city_name = top_city.index[0]
-            city_count = top_city.values[0]
-            
-            st.warning(f"🎯 **Odak Şehir:** {next_year} yılında tüm dikkatinizi **{city_name}** iline vermelisiniz.")
-            st.markdown(f"""
-            - **{city_name}** ilinde tam **{city_count}** adet sözleşme sonlanacak.
-            - Bu ili sırasıyla şu iller takip ediyor:
-            """)
-            
-            # İlk 3 ili listele
-            top3 = next_year_data['İl'].value_counts().head(3)
-            for city, count in top3.items():
-                st.markdown(f"*   **{city}:** {count} Sözleşme")
-        else:
-            st.info("Veri olmadığı için bölgesel risk haritası çıkarılamadı.")
+    st.markdown(f"#### 1. {next_year} Yılı Sözleşme Bitiş Projeksiyonu")
+    
+    if not next_year_data.empty:
+        # A) Zaman Analizi
+        peak_month_idx = next_year_data['Bitiş Ayı No'].value_counts().idxmax()
+        peak_count = next_year_data['Bitiş Ayı No'].value_counts().max()
+        ay_map_tr = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
+                     7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
+        peak_month_name = ay_map_tr[peak_month_idx]
+
+        st.info(f"📅 **Zaman Dağılımı:** {next_year} yılında toplam **{total_next}** adet sözleşme sona erecektir. "
+                f"Veri setindeki dağılıma göre en yüksek hacim **{peak_month_name}** ayında (**{peak_count}** adet) gerçekleşmektedir. "
+                f"Yıllık toplam hacmin %{int(peak_count/total_next*100)}'si bu ayda yoğunlaşmıştır.")
+
+        # B) İl Bazlı Tam Liste Analizi
+        st.markdown(f"**📍 {next_year} Yılı İl Bazlı Tam Dağılım Listesi:**")
+        st.write("Aşağıdaki tablo, gelecek yıl sözleşmesi bitecek illerin tamamını, işlem hacmine göre çoktan aza sıralamaktadır:")
+        
+        city_counts = next_year_data['İl'].value_counts().reset_index()
+        city_counts.columns = ['İl Adı', 'Bitecek Sözleşme Sayısı']
+        city_counts['Bölgesel Pay (%)'] = (city_counts['Bitecek Sözleşme Sayısı'] / total_next * 100).round(1)
+        
+        # Tabloyu göster
+        st.dataframe(city_counts, use_container_width=True, hide_index=True)
+
+    else:
+        st.write(f"{next_year} yılı için sistemde kayıtlı bir veri bulunmamaktadır.")
 
     st.markdown("---")
 
-    # 2. MEVSİMSEL ANALİZ (GENEL VERİ ÜZERİNDEN)
-    st.markdown("#### 🌦️ Mevsimsel Yoğunluk Analizi")
+    # 2. BÖLÜM: ADF (ÜRÜN/SEGMENT) ANALİZİ
+    st.markdown("#### 2. ADF Kodu Segmentasyon Analizi")
     
-    # Mevsimleri Grupla
+    if 'ADF' in data.columns:
+        total_records = len(data)
+        adf_counts = data['ADF'].value_counts()
+        unique_adf = len(adf_counts)
+        top_adf = adf_counts.index[0]
+        top_adf_count = adf_counts.iloc[0]
+        top_adf_ratio = (top_adf_count / total_records) * 100
+
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.write(f"Veri seti içerisinde toplam **{unique_adf}** farklı ADF kodu tespit edilmiştir. Dağılım karakteristikleri şöyledir:")
+            st.markdown(f"""
+            *   **Hakim Segment:** En yaygın görülen kod **{top_adf}** dir.
+            *   **Yoğunluk:** Toplam portföyün **%{top_adf_ratio:.1f}**'lik kısmı bu ADF kodu altında toplanmıştır.
+            *   **Çeşitlilik:** Geriye kalan %{100-top_adf_ratio:.1f}'lik kısım diğer {unique_adf-1} farklı kod arasında dağılmaktadır.
+            """)
+            
+            # ADF Tablosu
+            adf_df = adf_counts.reset_index()
+            adf_df.columns = ['ADF Kodu', 'Sayı']
+            adf_df['Oran (%)'] = (adf_df['Sayı'] / total_records * 100).round(1)
+            st.dataframe(adf_df.head(10), use_container_width=True, hide_index=True)
+            if unique_adf > 10:
+                st.caption("*Tabloda en yüksek hacimli ilk 10 ADF kodu gösterilmektedir.*")
+
+        with col2:
+            fig_adf = px.pie(adf_df, names='ADF Kodu', values='Sayı', title='ADF Dağılım Grafiği', hole=0.4)
+            fig_adf.update_traces(textposition='inside', textinfo='percent')
+            fig_adf.update_layout(showlegend=False)
+            st.plotly_chart(fig_adf, use_container_width=True)
+
+    else:
+        st.warning("Veri setinde 'ADF' sütunu bulunamadığı için segmentasyon analizi yapılamamıştır.")
+
+    st.markdown("---")
+
+    # 3. BÖLÜM: MEVSİMSELLİK TESPİTİ
+    st.markdown("#### 3. Mevsimsel Döngü Analizi")
+    
     def get_season(month):
         if month in [12, 1, 2]: return "Kış"
         elif month in [3, 4, 5]: return "İlkbahar"
         elif month in [6, 7, 8]: return "Yaz"
         else: return "Sonbahar"
         
-    data['Mevsim'] = data['Bitiş Ayı No'].apply(get_season)
-    season_counts = data['Mevsim'].value_counts()
-    dominant_season = season_counts.idxmax()
-    
-    st.info(f"💡 Yapay zeka analizine göre; işletmenizin sözleşme döngüsü genelde **{dominant_season}** mevsiminde yoğunlaşmaktadır.")
-    st.markdown(f"Bu durum, sektördeki ticari döngülerin **{dominant_season}** aylarında (Örn: {dominant_season == 'Yaz' and 'Haziran-Ağustos' or 'ilgili aylar'}) hızlandığını işaret eder.")
+    if 'Bitiş Ayı No' in data.columns:
+        data['Mevsim'] = data['Bitiş Ayı No'].apply(get_season)
+        season_counts = data['Mevsim'].value_counts()
+        dominant_season = season_counts.idxmax()
+        dominant_val = season_counts.max()
+        total_val = len(data)
+        
+        st.write(f"Genel veri seti üzerindeki tarihsel bitişler incelendiğinde, operasyonel döngünün **{dominant_season}** mevsiminde yoğunlaştığı görülmektedir.")
+        st.write(f"Bu mevsimde gerçekleşen işlem sayısı toplamın **%{int(dominant_val/total_val*100)}**'sini oluşturmaktadır. Veriler, iş hacminin mevsimsel geçişlerden etkilendiğini göstermektedir.")
 
 
 if df is not None:
@@ -178,7 +204,7 @@ if df is not None:
     st.markdown("---")
 
     # 4. SEKME YAPISI
-    tab1, tab2, tab3 = st.tabs(["📍 Grafikler", "📅 Sözleşme Takip", "🧠 Yapay Zeka & Öngörü"])
+    tab1, tab2, tab3 = st.tabs(["📍 Grafikler", "📅 Sözleşme Takip", "🧠 Makina Analizi"])
 
     # --- TAB 1 ---
     with tab1:
@@ -248,10 +274,10 @@ if df is not None:
         else:
             st.warning("Veri yok.")
 
-    # --- TAB 3: YENİ GELİŞMİŞ AI RAPORU ---
+    # --- TAB 3: GELİŞMİŞ MAKİNA ANALİZİ ---
     with tab3:
-        st.subheader("🧠 Gelecek Stratejileri ve Öngörüler")
-        create_advanced_prediction_report(filtered_df)
+        st.subheader("🧠 Detaylı Makina Analizi")
+        create_machine_analysis_report(filtered_df)
 
 else:
     st.info("Lütfen YENI.xlsx dosyasını yükleyiniz.")
