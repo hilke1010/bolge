@@ -3,14 +3,12 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import io
-import os
-from gtts import gTTS # Sesli okuma için gerekli kütüphane
 
 # Sayfa Ayarları
-st.set_page_config(page_title="Bayi Makina Analizi", layout="wide", page_icon="🤖")
+st.set_page_config(page_title="Bayi Makina Analizi", layout="wide", page_icon="📊")
 
 # Başlık
-st.title("🤖 Bayi Veri ve Makina Analizi")
+st.title("📊 Bayi Veri ve Makina Analizi")
 st.markdown("---")
 
 # 1. VERİ YÜKLEME
@@ -47,38 +45,6 @@ def load_data():
 
 df = load_data()
 
-# --- SESLİ RAPOR OLUŞTURUCU (METİN HAZIRLAMA) ---
-def prepare_speech_text(data):
-    if data is None or data.empty:
-        return "Veri bulunamadığı için analiz yapılamıyor."
-    
-    today = datetime.now()
-    next_year = today.year + 1
-    next_year_data = data[data['Bitiş Yılı'] == next_year]
-    
-    text = f"Merhaba. İşte {next_year} yılı stratejik analiz raporunuz. "
-    
-    if not next_year_data.empty:
-        total = len(next_year_data)
-        peak_month_idx = next_year_data['Bitiş Ayı No'].value_counts().idxmax()
-        ay_map_tr = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran', 7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
-        peak_month = ay_map_tr[peak_month_idx]
-        
-        text += f"Gelecek yıl toplam {total} adet sözleşme sona erecektir. "
-        text += f"Operasyonel yoğunluğun en yüksek olduğu dönem {peak_month} ayıdır. "
-        
-        if 'ADF' in next_year_data.columns:
-            top_adf = next_year_data['ADF'].mode()[0]
-            text += f"Bu dönemde en çok {top_adf} segmentindeki bayilerin sözleşmesi bitmektedir. "
-        
-        top_city = next_year_data['İl'].mode()[0]
-        text += f"Riskli bölgeler açısından bakıldığında, en kritik ilimiz {top_city} şehridir. "
-        text += "Stratejik planlamanın bu verilere göre yapılması önerilir. Teşekkürler."
-    else:
-        text += f"{next_year} yılı için herhangi bir sözleşme bitişi bulunmamaktadır. Durum stabildir."
-        
-    return text
-
 # --- MAKİNA ANALİZİ RAPORU ---
 def create_machine_analysis_report(data):
     if data is None or data.empty:
@@ -98,14 +64,14 @@ def create_machine_analysis_report(data):
         st.warning(f"{next_year} yılı için veri yok.")
         return
 
-    # 1. BÖLÜM
+    # 1. BÖLÜM: ZAMAN VE İL ANALİZİ
     st.markdown(f"#### 1. {next_year} Yılı Genel Projeksiyonu")
     peak_month_idx = next_year_data['Bitiş Ayı No'].value_counts().idxmax()
     peak_count = next_year_data['Bitiş Ayı No'].value_counts().max()
     ay_map_tr = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran', 7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
     peak_month_name = ay_map_tr[peak_month_idx]
 
-    st.info(f"📅 **Zaman Analizi:** {next_year} yılında toplam **{total_next}** adet sözleşme sona erecektir. En yoğun dönem **{peak_month_name}** ayıdır.")
+    st.info(f"📅 **Zaman Analizi:** {next_year} yılında toplam **{total_next}** adet sözleşme sona erecektir. En yoğun dönem **{peak_month_name}** ayıdır (Toplam: {peak_count}).")
 
     st.markdown(f"**📍 {next_year} Yılı İl Bazlı Risk Tablosu:**")
     city_counts = next_year_data['İl'].value_counts().reset_index()
@@ -115,7 +81,7 @@ def create_machine_analysis_report(data):
 
     st.markdown("---")
 
-    # 2. BÖLÜM: ADF
+    # 2. BÖLÜM: ADF ANALİZİ
     st.markdown(f"#### 2. {next_year} Yılında Bitecek Sözleşmelerin ADF Analizi")
     if 'ADF' in next_year_data.columns:
         adf_counts = next_year_data['ADF'].value_counts()
@@ -127,10 +93,13 @@ def create_machine_analysis_report(data):
             st.write(f"Gelecek yıl en çok **{top_adf}** grubuna ait sözleşmeler ({top_adf_count} adet) sona erecektir.")
             adf_df = adf_counts.reset_index()
             adf_df.columns = ['ADF Kodu', 'Bitecek Adet']
+            adf_df['Pay (%)'] = (adf_df['Bitecek Adet'] / total_next * 100).round(1)
             st.dataframe(adf_df, use_container_width=True, hide_index=True)
         with col2:
             fig_adf = px.pie(adf_df, names='ADF Kodu', values='Bitecek Adet', title=f"{next_year} ADF Dağılımı", hole=0.4)
             st.plotly_chart(fig_adf, use_container_width=True)
+    else:
+        st.warning("ADF verisi bulunamadı.")
 
 
 if df is not None:
@@ -178,7 +147,7 @@ if df is not None:
     st.markdown("---")
 
     # SEKME YAPISI
-    tab1, tab2, tab3, tab4 = st.tabs(["📍 Grafikler", "📅 Sözleşme Takip", "🧠 Makina Analizi", "🎙️ Sesli Sunum (AI)"])
+    tab1, tab2, tab3 = st.tabs(["📍 Grafikler", "📅 Sözleşme Takip", "🧠 Makina Analizi"])
 
     # --- TAB 1 ---
     with tab1:
@@ -191,7 +160,7 @@ if df is not None:
             st.subheader("İl Bazlı Dağılım (Tümü)")
             all_cities = filtered_df['İl'].value_counts().reset_index()
             all_cities.columns = ['İl', 'Sayı']
-            fig_all = px.bar(all_cities, x='İl', y='Sayı', color='Sayı', title='Tüm İller')
+            fig_all = px.bar(all_cities, x='İl', y='Sayı', color='Sayı', title='Tüm İllerin Dağılımı')
             st.plotly_chart(fig_all, use_container_width=True)
         
         st.markdown("---")
@@ -237,8 +206,8 @@ if df is not None:
             
             def highlight(val):
                 if isinstance(val, int):
-                    if val < 0: return 'background-color: #ffcccc'
-                    elif val < 90: return 'background-color: #ffffcc'
+                    if val < 0: return 'background-color: #ffcccc; color: black'
+                    elif val < 90: return 'background-color: #ffffcc; color: black'
                 return ''
             
             st.dataframe(table_data[cols].style.map(highlight, subset=['Kalan Gün']), use_container_width=True, hide_index=True)
@@ -246,32 +215,6 @@ if df is not None:
     # --- TAB 3 ---
     with tab3:
         create_machine_analysis_report(filtered_df)
-
-    # --- TAB 4: OTOMATİK SESLİ SUNUM ---
-    with tab4:
-        st.subheader("🎙️ Yapay Zeka Sesli Sunum (Otomatik)")
-        st.markdown("Bu modülde Yapay Zeka, analiz sonuçlarını sesli olarak özetler.")
-        
-        if st.button("🔊 Analizi Başlat ve Oku"):
-            with st.spinner("Yapay zeka raporu hazırlıyor ve seslendiriyor..."):
-                # 1. Metni Hazırla
-                speech_text = prepare_speech_text(filtered_df)
-                
-                # 2. Metni Sese Çevir (gTTS)
-                tts = gTTS(text=speech_text, lang='tr')
-                
-                # 3. Sesi Belleğe Kaydet
-                sound_file = io.BytesIO()
-                tts.write_to_fp(sound_file)
-                
-                # 4. Ekrana Bas
-                st.success("Analiz tamamlandı. Aşağıdan dinleyebilirsiniz:")
-                st.audio(sound_file, format='audio/mp3', start_time=0)
-                
-                # 5. Ekrana Metni de Yaz
-                st.markdown("---")
-                st.markdown(f"**📝 Okunan Metin:**")
-                st.info(speech_text)
 
 else:
     st.info("Lütfen YENI.xlsx dosyasını yükleyiniz.")
