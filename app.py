@@ -5,14 +5,52 @@ from datetime import datetime
 import io
 
 # Sayfa Ayarları
-st.set_page_config(page_title="Bayi Harita & Analiz", layout="wide", page_icon="🗺️")
+st.set_page_config(page_title="Bayi Makina Analizi", layout="wide", page_icon="📊")
 
 # Başlık
-st.title("🗺️ Bayi Haritası ve Stratejik Analiz")
+st.title("📊 Bayi Veri ve Makina Analizi")
 st.markdown("---")
 
-# --- TÜRKİYE İL KOORDİNATLARI (SABİT VERİ) ---
-# Bu liste sayesinde Excel'de enlem-boylam olmasa bile harita çalışır.
+# 1. VERİ YÜKLEME
+@st.cache_data
+def load_data():
+    try:
+        df = pd.read_excel("YENI.xlsx")
+        df.columns = df.columns.str.strip()
+        
+        date_cols = ['Dağıtıcı ile Yapılan Sözleşme Başlangıç Tarihi', 
+                     'Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi']
+        
+        for col in date_cols:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors='coerce')
+        
+        # Kalan Gün Hesaplama
+        today = pd.to_datetime("today")
+        if 'Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi' in df.columns:
+            df['Kalan Gün'] = (df['Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi'] - today).dt.days
+            df['Bitiş Yılı'] = df['Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi'].dt.year
+            
+            ay_map_tr = {
+                1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
+                7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'
+            }
+            df['Bitiş Ayı No'] = df['Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi'].dt.month
+            df['Bitiş Ayı Adı'] = df['Bitiş Ayı No'].map(ay_map_tr)
+            
+        # --- İL İSİMLERİNİ STANDARDİZE ETME ---
+        if 'İl' in df.columns:
+            table = str.maketrans("iı", "İI") 
+            df['Harita_İl'] = df['İl'].astype(str).apply(lambda x: x.translate(table).upper().strip())
+            
+        return df
+    except Exception as e:
+        st.error(f"Veri okunurken hata oluştu: {e}")
+        return None
+
+df = load_data()
+
+# HARİTA KOORDİNATLARI (SABİT)
 SEHIR_KOORDINATLARI = {
     "ADANA": [37.0000, 35.3213], "ADIYAMAN": [37.7648, 38.2786], "AFYONKARAHİSAR": [38.7507, 30.5567],
     "AĞRI": [39.7191, 43.0503], "AMASYA": [40.6499, 35.8353], "ANKARA": [39.9334, 32.8597],
@@ -43,83 +81,63 @@ SEHIR_KOORDINATLARI = {
     "KİLİS": [36.7184, 37.1212], "OSMANİYE": [37.0742, 36.2467], "DÜZCE": [40.8438, 31.1565]
 }
 
-# 1. VERİ YÜKLEME
-@st.cache_data
-def load_data():
-    try:
-        df = pd.read_excel("YENI.xlsx")
-        df.columns = df.columns.str.strip()
-        
-        date_cols = ['Dağıtıcı ile Yapılan Sözleşme Başlangıç Tarihi', 
-                     'Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi']
-        
-        for col in date_cols:
-            if col in df.columns:
-                df[col] = pd.to_datetime(df[col], errors='coerce')
-        
-        # Kalan Gün
-        today = pd.to_datetime("today")
-        if 'Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi' in df.columns:
-            df['Kalan Gün'] = (df['Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi'] - today).dt.days
-            df['Bitiş Yılı'] = df['Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi'].dt.year
-            
-            ay_map_tr = {
-                1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
-                7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'
-            }
-            df['Bitiş Ayı No'] = df['Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi'].dt.month
-            df['Bitiş Ayı Adı'] = df['Bitiş Ayı No'].map(ay_map_tr)
-        
-        # --- İL İSİMLERİNİ STANDARDİZE ETME (Harita için çok önemli) ---
-        # Excel'den gelen "istanbul", "İSTANBUL", "Istanbul" gibi varyasyonları düzeltir.
-        if 'İl' in df.columns:
-            # Türkçe karakterlere özel büyütme fonksiyonu
-            table = str.maketrans("iı", "İI") 
-            df['Harita_İl'] = df['İl'].astype(str).apply(lambda x: x.translate(table).upper().strip())
-            
-        return df
-    except Exception as e:
-        st.error(f"Veri okunurken hata oluştu: {e}")
-        return None
-
-df = load_data()
-
 # --- MAKİNA ANALİZİ RAPORU ---
 def create_machine_analysis_report(data):
-    if data is None or data.empty: return
-    today = datetime.now(); current_year = today.year; next_year = current_year + 1
+    if data is None or data.empty:
+        return
+
+    today = datetime.now()
+    current_year = today.year
+    next_year = current_year + 1
+    
     st.markdown(f"### 📊 Detaylı Makina Analiz Raporu ({next_year} Vizyonu)")
     st.markdown("---")
+
     next_year_data = data[data['Bitiş Yılı'] == next_year]
     total_next = len(next_year_data)
-    if next_year_data.empty: st.warning(f"{next_year} veri yok."); return
 
-    # 1. BÖLÜM
+    if next_year_data.empty:
+        st.warning(f"{next_year} yılı için veri yok.")
+        return
+
+    # 1. BÖLÜM: ZAMAN VE İL ANALİZİ
     st.markdown(f"#### 1. {next_year} Yılı Genel Projeksiyonu")
     peak_month_idx = next_year_data['Bitiş Ayı No'].value_counts().idxmax()
     peak_count = next_year_data['Bitiş Ayı No'].value_counts().max()
-    ay_map = {1:'Ocak',2:'Şubat',3:'Mart',4:'Nisan',5:'Mayıs',6:'Haziran',7:'Temmuz',8:'Ağustos',9:'Eylül',10:'Ekim',11:'Kasım',12:'Aralık'}
-    st.info(f"📅 **Zaman Analizi:** {next_year} yılında toplam **{total_next}** sözleşme bitiyor. Zirve: **{ay_map[peak_month_idx]}** ({peak_count} adet).")
-    
-    st.markdown(f"**📍 {next_year} İl Bazlı Risk:**")
+    ay_map_tr = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran', 7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
+    peak_month_name = ay_map_tr[peak_month_idx]
+
+    st.info(f"📅 **Zaman Analizi:** {next_year} yılında toplam **{total_next}** adet sözleşme sona erecektir. En yoğun dönem **{peak_month_name}** ayıdır (Toplam: {peak_count}).")
+
+    st.markdown(f"**📍 {next_year} Yılı İl Bazlı Risk Tablosu:**")
     city_counts = next_year_data['İl'].value_counts().reset_index()
-    city_counts.columns = ['İl', 'Adet']
-    city_counts['Pay (%)'] = (city_counts['Adet'] / total_next * 100).round(1)
+    city_counts.columns = ['İl Adı', 'Bitecek Sözleşme Sayısı']
+    city_counts['Pay (%)'] = (city_counts['Bitecek Sözleşme Sayısı'] / total_next * 100).round(1)
     st.dataframe(city_counts, use_container_width=True, hide_index=True)
+
     st.markdown("---")
-    
-    # 2. BÖLÜM
-    st.markdown(f"#### 2. {next_year} ADF Analizi")
+
+    # 2. BÖLÜM: ADF ANALİZİ
+    st.markdown(f"#### 2. {next_year} Yılında Bitecek Sözleşmelerin ADF Analizi")
     if 'ADF' in next_year_data.columns:
-        col1, col2 = st.columns([2,1])
-        with col1:
-            adf_c = next_year_data['ADF'].value_counts().reset_index()
-            adf_c.columns=['ADF','Adet']
-            adf_c['Pay (%)'] = (adf_c['Adet']/total_next*100).round(1)
-            st.dataframe(adf_c, use_container_width=True, hide_index=True)
-        with col2:
-            fig = px.pie(adf_c, names='ADF', values='Adet', hole=0.4, title='ADF Dağılımı')
-            st.plotly_chart(fig, use_container_width=True)
+        adf_counts = next_year_data['ADF'].value_counts()
+        if not adf_counts.empty:
+            top_adf = adf_counts.index[0]
+            top_adf_count = adf_counts.iloc[0]
+            
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                st.write(f"Gelecek yıl en çok **{top_adf}** grubuna ait sözleşmeler ({top_adf_count} adet) sona erecektir.")
+                adf_df = adf_counts.reset_index()
+                adf_df.columns = ['ADF Kodu', 'Bitecek Adet']
+                adf_df['Pay (%)'] = (adf_df['Bitecek Adet'] / total_next * 100).round(1)
+                st.dataframe(adf_df, use_container_width=True, hide_index=True)
+            with col2:
+                fig_adf = px.pie(adf_df, names='ADF Kodu', values='Bitecek Adet', title=f"{next_year} ADF Dağılımı", hole=0.4)
+                st.plotly_chart(fig_adf, use_container_width=True)
+    else:
+        st.warning("ADF verisi bulunamadı.")
+
 
 if df is not None:
     # YAN MENÜ
@@ -143,87 +161,78 @@ if df is not None:
         filtered_df = filtered_df[filtered_df['İl'] == selected_il]
 
     st.sidebar.markdown("---")
+    st.sidebar.header("📥 Rapor İndir")
     try:
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             filtered_df.to_excel(writer, index=False, sheet_name='Rapor')
-        st.sidebar.download_button("📥 Excel İndir", buffer.getvalue(), f"Rapor_{datetime.now().strftime('%Y-%m-%d')}.xlsx", "application/vnd.ms-excel")
-    except: pass
+        st.sidebar.download_button(label="📄 Excel İndir", data=buffer.getvalue(), file_name=f"Rapor_{datetime.now().strftime('%Y-%m-%d')}.xlsx", mime="application/vnd.ms-excel")
+    except:
+        pass
 
     st.sidebar.markdown("---")
     st.sidebar.info("kerim.aksu@milangaz.com.tr")
 
-    # KPI
+    # KARTLAR
     st.subheader("📈 Genel Durum")
     col1, col2 = st.columns(2)
-    col1.metric("Toplam Bayi", len(filtered_df))
-    col2.metric("İl Sayısı", filtered_df['İl'].nunique())
+    with col1:
+        st.metric("Toplam Bayi", len(filtered_df))
+    with col2:
+        st.metric("İl Sayısı", filtered_df['İl'].nunique())
+    
     st.markdown("---")
 
     # SEKME YAPISI
     tab1, tab2, tab3 = st.tabs(["📍 Harita & Grafikler", "📅 Sözleşme Takip", "🧠 Makina Analizi"])
 
-    # --- TAB 1: HARİTA VE GRAFİKLER ---
+    # --- TAB 1 ---
     with tab1:
-        # 1. HARİTA BÖLÜMÜ (EN ÜSTTE)
+        # HARİTA
         st.subheader("🗺️ Türkiye Bayi Yoğunluk Haritası")
-        
-        # Harita Verisini Hazırla
         map_data = filtered_df['Harita_İl'].value_counts().reset_index()
         map_data.columns = ['Harita_İl', 'Sayı']
         
-        # Koordinatları Eşleştir
         def get_lat(city): return SEHIR_KOORDINATLARI.get(city, [None, None])[0]
         def get_lon(city): return SEHIR_KOORDINATLARI.get(city, [None, None])[1]
         
         map_data['lat'] = map_data['Harita_İl'].apply(get_lat)
         map_data['lon'] = map_data['Harita_İl'].apply(get_lon)
-        map_data = map_data.dropna(subset=['lat', 'lon']) # Eşleşmeyenleri çıkar
+        map_data = map_data.dropna(subset=['lat', 'lon'])
 
         if not map_data.empty:
             fig_map = px.scatter_mapbox(
-                map_data, 
-                lat="lat", 
-                lon="lon", 
-                size="Sayı", 
-                color="Sayı",
-                hover_name="Harita_İl", 
-                hover_data={"lat": False, "lon": False, "Sayı": True},
-                color_continuous_scale=px.colors.sequential.Viridis,
-                size_max=40, 
-                zoom=4.8,
-                center={"lat": 39.0, "lon": 35.0}, # Türkiye Merkezi
+                map_data, lat="lat", lon="lon", size="Sayı", color="Sayı",
+                hover_name="Harita_İl", color_continuous_scale=px.colors.sequential.Viridis,
+                size_max=40, zoom=4.8, center={"lat": 39.0, "lon": 35.0},
                 title="İl Bazlı Bayi Dağılımı (Büyüklük = Bayi Sayısı)"
             )
-            fig_map.update_layout(mapbox_style="carto-positron") # Ücretsiz ve temiz harita stili
-            fig_map.update_layout(margin={"r":0,"t":40,"l":0,"b":0}, height=500)
+            fig_map.update_layout(mapbox_style="carto-positron", margin={"r":0,"t":40,"l":0,"b":0}, height=500)
             st.plotly_chart(fig_map, use_container_width=True)
         else:
-            st.warning("Harita için uygun veri eşleşmedi. İl isimlerini kontrol ediniz.")
+            st.warning("Harita verisi oluşturulamadı.")
 
         st.markdown("---")
-
-        # 2. DİĞER GRAFİKLER
         c1, c2 = st.columns(2)
         with c1:
             st.subheader("Bölge Dağılımı")
             fig_bolge = px.pie(filtered_df, names='BÖLGE', title='Bölge Bazlı Oranlar', hole=0.4)
             st.plotly_chart(fig_bolge, use_container_width=True)
         with c2:
-            st.subheader("İl Bazlı Sıralama")
+            st.subheader("İl Bazlı Dağılım (Tümü)")
             all_cities = filtered_df['İl'].value_counts().reset_index()
             all_cities.columns = ['İl', 'Sayı']
             fig_all = px.bar(all_cities, x='İl', y='Sayı', color='Sayı', title='Tüm İllerin Dağılımı')
             st.plotly_chart(fig_all, use_container_width=True)
-
+        
         if 'ADF' in filtered_df.columns:
             st.subheader("Genel ADF Dağılımı")
-            adf_g = filtered_df['ADF'].value_counts().reset_index()
-            adf_g.columns=['ADF','Sayı']
-            fig_adf = px.bar(adf_g, x='ADF', y='Sayı', color='Sayı', title="Portföy ADF Dağılımı")
+            adf_genel = filtered_df['ADF'].value_counts().reset_index()
+            adf_genel.columns = ['ADF', 'Sayı']
+            fig_adf = px.bar(adf_genel, x='ADF', y='Sayı', color='Sayı', title="Portföy ADF Dağılımı")
             st.plotly_chart(fig_adf, use_container_width=True)
 
-    # --- TAB 2 ---
+    # --- TAB 2 (SÖZLEŞME TAKİP - DÜZENLENDİ) ---
     with tab2:
         st.subheader("📅 Yıllık Takip")
         mevcut_yillar = sorted(filtered_df['Bitiş Yılı'].dropna().unique())
@@ -232,20 +241,36 @@ if df is not None:
             year_df = filtered_df[filtered_df['Bitiş Yılı'] == selected_year].copy()
             st.metric(f"{selected_year} Toplam", len(year_df))
             
-            c1, c2 = st.columns([2,1])
-            with c1:
-                monthly_c = year_df.groupby(['Bitiş Ayı No', 'Bitiş Ayı Adı']).size().reset_index(name='S').sort_values('Bitiş Ayı No')
-                fig_m = px.bar(monthly_c, x='Bitiş Ayı Adı', y='S', title=f"{selected_year} Aylık", color='S')
-                fig_m.update_layout(clickmode='event+select')
-                selected_event = st.plotly_chart(fig_m, use_container_width=True, on_select="rerun")
-            with c2:
+            c_g1, c_g2 = st.columns([2,1])
+            with c_g1:
+                monthly_counts = year_df.groupby(['Bitiş Ayı No', 'Bitiş Ayı Adı']).size().reset_index(name='Sayi').sort_values('Bitiş Ayı No')
+                
+                # --- GÜNCELLEME BURADA: TEXTPOSITION OUTSIDE ---
+                fig_monthly = px.bar(
+                    monthly_counts, 
+                    x='Bitiş Ayı Adı', 
+                    y='Sayi', 
+                    text='Sayi', # Sayıyı grafiğe ekle
+                    title=f"{selected_year} Aylık Dağılım", 
+                    color='Sayi'
+                )
+                # Sayıları çubuğun üstüne taşı ve büyüt
+                fig_monthly.update_traces(textposition='outside', textfont=dict(size=14, color='black'))
+                # Y eksenini biraz genişlet ki sayılar kesilmesin
+                max_val = monthly_counts['Sayi'].max()
+                fig_monthly.update_layout(yaxis=dict(range=[0, max_val * 1.2]), clickmode='event+select')
+                # -----------------------------------------------
+                
+                selected_event = st.plotly_chart(fig_monthly, use_container_width=True, on_select="rerun")
+            
+            with c_g2:
                 if 'ADF' in year_df.columns:
                     adf_y = year_df['ADF'].value_counts().reset_index()
                     adf_y.columns=['ADF','S']
-                    fig_a = px.pie(adf_y, names='ADF', values='S', hole=0.3, title=f"{selected_year} ADF")
-                    st.plotly_chart(fig_a, use_container_width=True)
-            
-            st.info("Filtrelemek için grafiğe tıklayın. Sıfırlamak için çift tıklayın.")
+                    fig_ay = px.pie(adf_y, names='ADF', values='S', title=f"{selected_year} ADF", hole=0.3)
+                    st.plotly_chart(fig_ay, use_container_width=True)
+
+            st.info("Tabloyu filtrelemek için grafiğe tıklayın. Sıfırlamak için çift tıklayın.")
             
             table_data = year_df.copy()
             if selected_event and selected_event['selection']['points']:
@@ -254,13 +279,14 @@ if df is not None:
             
             table_data = table_data.sort_values('Kalan Gün')
             table_data['Bitiş Tarihi'] = table_data['Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi'].dt.strftime('%d/%m/%Y')
-            cols = [c for c in ['Unvan','İl','ADF','Bitiş Tarihi','Kalan Gün'] if c in table_data.columns]
+            cols = [c for c in ['Unvan', 'İl', 'ADF', 'Bitiş Tarihi', 'Kalan Gün'] if c in table_data.columns]
             
             def highlight(val):
                 if isinstance(val, int):
                     if val < 0: return 'background-color: #ffcccc'
                     elif val < 90: return 'background-color: #ffffcc'
                 return ''
+            
             st.dataframe(table_data[cols].style.map(highlight, subset=['Kalan Gün']), use_container_width=True, hide_index=True)
 
     # --- TAB 3 ---
