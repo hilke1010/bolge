@@ -8,7 +8,7 @@ import io
 st.set_page_config(page_title="Bayi Strateji Paneli", layout="wide", page_icon="🤖")
 
 # Başlık
-st.title("🤖 Bayi Veri Analizi ve Makine Öğrenmesi Raporu")
+st.title("🤖 Bayi Veri Analizi ve Gelecek Öngörü Sistemi")
 st.markdown("---")
 
 # 1. VERİ YÜKLEME
@@ -31,7 +31,7 @@ def load_data():
             df['Kalan Gün'] = (df['Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi'] - today).dt.days
             df['Bitiş Yılı'] = df['Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi'].dt.year
             
-            # Türkçe Ay İsimleri (Manuel Map - Hata Riskine Karşı)
+            # Türkçe Ay İsimleri (Manuel Map - Garanti Çözüm)
             ay_map_tr = {
                 1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
                 7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'
@@ -46,78 +46,84 @@ def load_data():
 
 df = load_data()
 
-# --- GELİŞMİŞ MAKİNE ÖĞRENMESİ (ML) ANALİZ MOTORU ---
-def create_ml_strategic_report(data, region_name, city_name):
+# --- YENİ: GELİŞMİŞ ÖNGÖRÜ MOTORU (NOKTA ATIŞI TARİHLER) ---
+def create_advanced_prediction_report(data):
     if data is None or data.empty:
-        return ["Veri seti boş, analiz yapılamıyor."]
-    
-    report_lines = []
+        return
+
     today = datetime.now()
     current_year = today.year
+    next_year = current_year + 1
     
-    # Temel Metrikler
-    total_count = len(data)
-    avg_days = data['Kalan Gün'].mean()
-    
-    # 1. YÖNETİCİ ÖZETİ (EXECUTIVE SUMMARY)
-    report_lines.append(f"### 🚀 Yönetici Özeti: {region_name} - {city_name}")
-    report_lines.append(f"**Analiz Zamanı:** {today.strftime('%d.%m.%Y %H:%M')}")
-    report_lines.append("---")
-    report_lines.append(f"Algoritma, seçilen filtreler dahilinde **{total_count}** adet veri noktasını taramıştır.")
-    report_lines.append(f"Portföyün ortalama sözleşme vadesi (kalan gün) yaklaşık **{int(avg_days)} gün** olarak hesaplanmıştır.")
-    
-    # 2. MEVSİMSELLİK VE ZAMAN KÜMELEMESİ (TEMPORAL CLUSTERING)
-    if 'Bitiş Ayı No' in data.columns:
-        # Çeyrek Dönem Analizi
-        q1 = data[data['Bitiş Ayı No'].isin([1, 2, 3])].shape[0]
-        q2 = data[data['Bitiş Ayı No'].isin([4, 5, 6])].shape[0]
-        q3 = data[data['Bitiş Ayı No'].isin([7, 8, 9])].shape[0]
-        q4 = data[data['Bitiş Ayı No'].isin([10, 11, 12])].shape[0]
-        
-        quarters = {'Q1 (Ocak-Mart)': q1, 'Q2 (Nisan-Haziran)': q2, 'Q3 (Temmuz-Eylül)': q3, 'Q4 (Ekim-Aralık)': q4}
-        max_q = max(quarters, key=quarters.get)
-        
-        report_lines.append("#### ⏳ Mevsimsellik ve Zaman Kümeleri")
-        report_lines.append(f"- **Yoğunluk Tespiti:** Sözleşme bitişlerinin en yoğun olduğu dönem **{max_q}** dönemidir (Toplam {quarters[max_q]} adet).")
-        report_lines.append(f"- **Operasyonel Yük:** Yılın bu çeyreğinde operasyonel iş yükünün %{int(quarters[max_q]/total_count*100)} seviyesine ulaşması öngörülmektedir.")
-        
-        # Gelecek Yıl Trendi
-        next_year_total = data[data['Bitiş Yılı'] == (current_year + 1)].shape[0]
-        this_year_total = data[data['Bitiş Yılı'] == current_year].shape[0]
-        
-        trend_arrow = "↗️ Artış" if next_year_total > this_year_total else "↘️ Azalış"
-        report_lines.append(f"- **Yıllık Momentum:** {current_year} yılından {current_year+1} yılına geçişte sözleşme yenileme hacminde **{trend_arrow}** beklenmektedir ({this_year_total} -> {next_year_total}).")
+    st.markdown(f"### 🔮 Gelecek Simülasyonu ve Stratejik Öngörüler ({current_year}-{next_year})")
+    st.markdown("---")
 
-    # 3. ANOMALİ VE RİSK TESPİTİ (RISK DETECTION)
-    report_lines.append("#### 🛡️ Risk ve Anomali Tespiti")
+    # 1. GELECEK YIL ANALİZİ (2026 vb.)
+    next_year_data = data[data['Bitiş Yılı'] == next_year]
     
-    # Pareto İlkesi (80/20 Kuralı Kontrolü)
-    top_city = data['İl'].value_counts().head(1)
-    if not top_city.empty:
-        city_name_dom = top_city.index[0]
-        city_val = top_city.values[0]
-        ratio = (city_val / total_count) * 100
-        
-        if ratio > 40:
-            report_lines.append(f"- ⚠️ **Coğrafi Konsantrasyon Riski:** Veri setinin **%{int(ratio)}** gibi büyük bir kısmı tek bir ilde (**{city_name_dom}**) toplanmıştır. Bölgesel bir kriz genel portföyü derinden etkileyebilir.")
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown(f"#### 📅 {next_year} Yılı Kritik Tarihler")
+        if not next_year_data.empty:
+            # En yoğun ayı bul
+            peak_month_idx = next_year_data['Bitiş Ayı No'].value_counts().idxmax()
+            peak_count = next_year_data['Bitiş Ayı No'].value_counts().max()
+            
+            # Ay ismini bul
+            ay_map_tr = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
+                         7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
+            peak_month_name = ay_map_tr[peak_month_idx]
+            
+            total_next = len(next_year_data)
+            
+            st.error(f"🚨 **En Kritik Dönem:** {next_year} yılında operasyonel yük **{peak_month_name}** ayında zirve yapacak.")
+            st.markdown(f"""
+            - **{next_year} Toplam Bitiş:** {total_next} adet sözleşme.
+            - **Zirve Noktası:** Sadece **{peak_month_name} {next_year}** döneminde **{peak_count}** adet sözleşme (Yıllık yükün %{int(peak_count/total_next*100)}'si) bitecek.
+            - **Aksiyon:** {peak_month_name} ayından en az 3 ay önce saha ekibi planlaması yapılmalı.
+            """)
         else:
-            report_lines.append(f"- ✅ **Dengeli Dağılım:** En yoğun il (**{city_name_dom}**) toplamın %{int(ratio)}'sini oluşturmaktadır. Coğrafi risk dağıtılmıştır.")
+            st.success(f"✅ {next_year} yılı için henüz sisteme girilmiş riskli bir sözleşme bitişi bulunmuyor.")
 
-    # Aciliyet Skoru
-    urgent_count = data[(data['Kalan Gün'] >= 0) & (data['Kalan Gün'] < 60)].shape[0]
-    if urgent_count > 0:
-        report_lines.append(f"- 🔥 **Sıcak Temas Gerekliliği:** Algoritma, **{urgent_count}** adet bayinin 'Yüksek Kayıp Riski' taşıdığını tespit etmiştir (Kalan süre < 60 gün).")
-    
-    # 4. STRATEJİK TAVSİYE (ACTIONABLE INSIGHTS)
-    report_lines.append("#### 💡 Stratejik Makine Önerileri")
-    if next_year_total > this_year_total:
-        report_lines.append(f"1. **Kaynak Planlaması:** Gelecek yıl iş yükü artacağından, {current_year} son çeyreğinde ek personel veya bütçe planlaması yapılmalıdır.")
-    else:
-        report_lines.append(f"1. **Verimlilik Odaklılık:** Gelecek yıl hacim düşeceğinden, mevcut portföyün karlılığını artırmaya (Deepening) odaklanılmalıdır.")
-    
-    report_lines.append("2. **Erken Uyarı:** Kalan süresi 90-180 gün arasında olan 'Sarı Bölge' bayilerine şimdiden 'Memnuniyet Anketi' yapılması churn oranını düşürecektir.")
+    with col2:
+        st.markdown(f"#### 📍 {next_year} Yılında Hangi Şehirler Riskli?")
+        if not next_year_data.empty:
+            top_city = next_year_data['İl'].value_counts().head(1)
+            city_name = top_city.index[0]
+            city_count = top_city.values[0]
+            
+            st.warning(f"🎯 **Odak Şehir:** {next_year} yılında tüm dikkatinizi **{city_name}** iline vermelisiniz.")
+            st.markdown(f"""
+            - **{city_name}** ilinde tam **{city_count}** adet sözleşme sonlanacak.
+            - Bu ili sırasıyla şu iller takip ediyor:
+            """)
+            
+            # İlk 3 ili listele
+            top3 = next_year_data['İl'].value_counts().head(3)
+            for city, count in top3.items():
+                st.markdown(f"*   **{city}:** {count} Sözleşme")
+        else:
+            st.info("Veri olmadığı için bölgesel risk haritası çıkarılamadı.")
 
-    return report_lines
+    st.markdown("---")
+
+    # 2. MEVSİMSEL ANALİZ (GENEL VERİ ÜZERİNDEN)
+    st.markdown("#### 🌦️ Mevsimsel Yoğunluk Analizi")
+    
+    # Mevsimleri Grupla
+    def get_season(month):
+        if month in [12, 1, 2]: return "Kış"
+        elif month in [3, 4, 5]: return "İlkbahar"
+        elif month in [6, 7, 8]: return "Yaz"
+        else: return "Sonbahar"
+        
+    data['Mevsim'] = data['Bitiş Ayı No'].apply(get_season)
+    season_counts = data['Mevsim'].value_counts()
+    dominant_season = season_counts.idxmax()
+    
+    st.info(f"💡 Yapay zeka analizine göre; işletmenizin sözleşme döngüsü genelde **{dominant_season}** mevsiminde yoğunlaşmaktadır.")
+    st.markdown(f"Bu durum, sektördeki ticari döngülerin **{dominant_season}** aylarında (Örn: {dominant_season == 'Yaz' and 'Haziran-Ağustos' or 'ilgili aylar'}) hızlandığını işaret eder.")
 
 
 if df is not None:
@@ -126,11 +132,9 @@ if df is not None:
     st.sidebar.markdown("---")
     st.sidebar.header("🔍 Filtreler")
 
-    # Bölge
     bolge_list = ["Tümü"] + list(df['BÖLGE'].unique())
     selected_bolge = st.sidebar.selectbox("Bölge Seçiniz", bolge_list)
 
-    # İl
     if selected_bolge != "Tümü":
         filtered_df = df[df['BÖLGE'] == selected_bolge]
         il_list = ["Tümü"] + list(filtered_df['İl'].unique())
@@ -153,92 +157,77 @@ if df is not None:
         st.sidebar.download_button(
             label="📥 Raporu Excel İndir",
             data=buffer.getvalue(),
-            file_name=f"Stratejik_Rapor_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+            file_name=f"Rapor_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
             mime="application/vnd.ms-excel"
         )
     except:
-        pass # Modül yoksa hata verme geç
+        pass
 
     st.sidebar.markdown("---")
     st.sidebar.header("📧 İletişim")
     st.sidebar.info("kerim.aksu@milangaz.com.tr")
 
-    # 3. KARTLAR (KPI)
-    st.subheader("📈 Anlık Durum Paneli")
+    # 3. KARTLAR
+    st.subheader("📈 Genel Durum")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Toplam Bayi/Sözleşme", len(filtered_df), help="Filtreye giren toplam kayıt sayısı")
+        st.metric("Toplam Bayi/Sözleşme", len(filtered_df))
     with col2:
-        st.metric("Operasyonel İl Sayısı", filtered_df['İl'].nunique(), help="Faaliyet gösterilen il sayısı")
+        st.metric("Faaliyet Gösterilen İl", filtered_df['İl'].nunique())
     
     st.markdown("---")
 
-    # 4. SEKME YAPISI (YENİLENMİŞ İSİMLER)
-    tab1, tab2, tab3 = st.tabs(["📍 Görsel Analizler", "📅 Sözleşme Takip Listesi", "🧠 Makine Öğrenmesi & Stratejik Analiz"])
+    # 4. SEKME YAPISI
+    tab1, tab2, tab3 = st.tabs(["📍 Grafikler", "📅 Sözleşme Takip", "🧠 Yapay Zeka & Öngörü"])
 
-    # --- TAB 1: GRAFİKLER ---
+    # --- TAB 1 ---
     with tab1:
         c1, c2 = st.columns(2)
         with c1:
-            st.subheader("Bölgesel Ağırlık")
-            fig_bolge = px.pie(filtered_df, names='BÖLGE', title='Bölge Dağılımı', hole=0.4)
+            st.subheader("Bölge Dağılımı")
+            fig_bolge = px.pie(filtered_df, names='BÖLGE', title='Bölge Bazlı Oranlar', hole=0.4)
             st.plotly_chart(fig_bolge, use_container_width=True)
         with c2:
-            st.subheader("En Kritik 10 İl")
+            st.subheader("En Yoğun 10 İl")
             top_cities = filtered_df['İl'].value_counts().nlargest(10).reset_index()
             top_cities.columns = ['İl', 'Sayı']
-            fig_top_cities = px.bar(top_cities, x='İl', y='Sayı', color='Sayı', title='İl Bazlı Bayi Yoğunluğu')
+            fig_top_cities = px.bar(top_cities, x='İl', y='Sayı', color='Sayı', title='En Çok Bayi Olan İller')
             st.plotly_chart(fig_top_cities, use_container_width=True)
 
-    # --- TAB 2: SÖZLEŞME TAKİP (YILLIK TOPLAM GÖSTERGESİ EKLENDİ) ---
+    # --- TAB 2 ---
     with tab2:
-        st.subheader("📅 Dönemsel Sözleşme Yönetimi")
+        st.subheader("📅 Yıllık ve Aylık Sözleşme Takibi")
 
         mevcut_yillar = sorted(filtered_df['Bitiş Yılı'].dropna().unique())
         
         if len(mevcut_yillar) > 0:
-            # 1. Yıl Seçimi
             c_sel, c_info = st.columns([1, 3])
             with c_sel:
-                selected_year = st.selectbox("Analiz Yılı Seçiniz:", options=mevcut_yillar, index=0)
+                selected_year = st.selectbox("Yıl Seçiniz:", options=mevcut_yillar, index=0)
             
-            # Veriyi o yıla göre süz
             year_df = filtered_df[filtered_df['Bitiş Yılı'] == selected_year].copy()
-            
-            # --- YENİ ÖZELLİK: O YILIN TOPLAM SAYISINI GÖSTER ---
             total_in_year = len(year_df)
+            
             with c_info:
-                st.metric(label=f"{selected_year} Yılında Bitecek Toplam Sözleşme", value=f"{total_in_year} Adet", delta_color="off")
-            # ----------------------------------------------------
+                st.metric(f"{selected_year} Toplam Sözleşme", f"{total_in_year} Adet")
 
-            # Aylık Grafik Hazırlığı
             monthly_counts = year_df.groupby(['Bitiş Ayı No', 'Bitiş Ayı Adı']).size().reset_index(name='Sayi')
             monthly_counts = monthly_counts.sort_values('Bitiş Ayı No')
 
-            st.info("💡 **İpucu:** Aşağıdaki grafikteki çubuklara tıklayarak listeyi aylık bazda filtreleyebilirsiniz.")
+            st.info("💡 Grafikteki aylara tıklayarak tabloyu filtreleyebilirsiniz.")
 
-            fig_monthly = px.bar(
-                monthly_counts, 
-                x='Bitiş Ayı Adı', 
-                y='Sayi', 
-                text='Sayi', 
-                title=f"{selected_year} Yılı Aylık Dağılım Grafiği", 
-                color='Sayi',
-                labels={'Sayi': 'Sözleşme Sayısı', 'Bitiş Ayı Adı': 'Ay'}
-            )
+            fig_monthly = px.bar(monthly_counts, x='Bitiş Ayı Adı', y='Sayi', text='Sayi', title=f"{selected_year} Aylık Dağılım", color='Sayi')
             fig_monthly.update_traces(textposition='outside')
             fig_monthly.update_layout(clickmode='event+select')
             
-            # Tıklama ile Filtreleme
             selected_event = st.plotly_chart(fig_monthly, use_container_width=True, on_select="rerun")
             
             table_data = year_df.copy()
             if selected_event and selected_event['selection']['points']:
                 tiklanan_ay = selected_event['selection']['points'][0]['x']
                 table_data = year_df[year_df['Bitiş Ayı Adı'] == tiklanan_ay]
-                st.success(f"🔍 Filtre Aktif: **{tiklanan_ay} {selected_year}** listeleniyor.")
+                st.success(f"✅ **{tiklanan_ay}** ayı filtrelendi.")
             
-            # Tablo Düzeni ve Renklendirme
             table_data = table_data.sort_values(by='Kalan Gün')
             table_data['Bitiş Tarihi'] = table_data['Dağıtıcı ile Yapılan Sözleşme Bitiş Tarihi'].dt.strftime('%d/%m/%Y')
             
@@ -257,19 +246,12 @@ if df is not None:
                 hide_index=True
             )
         else:
-            st.warning("Veri bulunamadı.")
+            st.warning("Veri yok.")
 
-    # --- TAB 3: GELİŞMİŞ MAKİNE ÖĞRENMESİ RAPORU ---
+    # --- TAB 3: YENİ GELİŞMİŞ AI RAPORU ---
     with tab3:
-        st.subheader("🧠 Makine Öğrenmesi & Stratejik Analiz Raporu")
-        st.info(f"Aşağıdaki analiz, {selected_bolge} bölgesi ve {selected_il} ili baz alınarak yapay zeka tarafından oluşturulmuştur.")
-        
-        analiz_sonucu = create_ml_strategic_report(filtered_df, selected_bolge, selected_il)
-        
-        # Raporu Şık Bir Kutu İçinde Göster
-        with st.container():
-            for line in analiz_sonucu:
-                st.markdown(line)
+        st.subheader("🧠 Gelecek Stratejileri ve Öngörüler")
+        create_advanced_prediction_report(filtered_df)
 
 else:
     st.info("Lütfen YENI.xlsx dosyasını yükleyiniz.")
