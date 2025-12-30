@@ -4,11 +4,57 @@ import plotly.express as px
 from datetime import datetime
 import io
 
-# Sayfa Ayarları
+# -----------------------------------------------------------------------------
+# 1. SAYFA AYARLARI (En başta olmalı)
+# -----------------------------------------------------------------------------
 st.set_page_config(page_title="Bayi Makina Analizi", layout="wide", page_icon="📊")
+
+# -----------------------------------------------------------------------------
+# 2. GİRİŞ SİSTEMİ (AUTHENTICATION)
+# -----------------------------------------------------------------------------
+
+# Session state'de giriş durumu yoksa false olarak başlat
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+
+def login_screen():
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1, 2, 1])
+    
+    with c2:
+        st.markdown("<h2 style='text-align: center;'>🔒 Güvenli Giriş</h2>", unsafe_allow_html=True)
+        st.info("Lütfen yetkili kullanıcı bilgilerinizi giriniz.")
+        
+        with st.form("login_form"):
+            username = st.text_input("Kullanıcı Adı")
+            password = st.text_input("Şifre", type="password")
+            submit_button = st.form_submit_button("Giriş Yap", use_container_width=True)
+
+            if submit_button:
+                if username == "LO2025" and password == "OL2025":
+                    st.session_state["logged_in"] = True
+                    st.success("Giriş Başarılı! Yönlendiriliyorsunuz...")
+                    st.rerun()
+                else:
+                    st.error("Hatalı kullanıcı adı veya şifre!")
+
+# EĞER GİRİŞ YAPILMAMIŞSA SADECE LOGİN EKRANINI GÖSTER VE DUR
+if not st.session_state["logged_in"]:
+    login_screen()
+    st.stop()  # Kodun geri kalanını okumayı durdur
+
+# -----------------------------------------------------------------------------
+# 3. ANA UYGULAMA (Giriş Başarılıysa Burası Çalışır)
+# -----------------------------------------------------------------------------
 
 # Başlık
 st.title("📊 Bayi Veri ve Makina Analizi")
+
+# Çıkış Butonu (Sağ üst köşe gibi davranması için sidebar'a ekliyoruz)
+if st.sidebar.button("🚪 Çıkış Yap"):
+    st.session_state["logged_in"] = False
+    st.rerun()
+
 st.markdown("---")
 
 # 1. VERİ YÜKLEME
@@ -232,7 +278,7 @@ if df is not None:
             fig_adf = px.bar(adf_genel, x='ADF', y='Sayı', color='Sayı', title="Portföy ADF Dağılımı")
             st.plotly_chart(fig_adf, use_container_width=True)
 
-    # --- TAB 2 (SÖZLEŞME TAKİP - DÜZENLENDİ) ---
+    # --- TAB 2 (SÖZLEŞME TAKİP) ---
     with tab2:
         st.subheader("📅 Yıllık Takip")
         mevcut_yillar = sorted(filtered_df['Bitiş Yılı'].dropna().unique())
@@ -245,21 +291,17 @@ if df is not None:
             with c_g1:
                 monthly_counts = year_df.groupby(['Bitiş Ayı No', 'Bitiş Ayı Adı']).size().reset_index(name='Sayi').sort_values('Bitiş Ayı No')
                 
-                # --- GÜNCELLEME BURADA: TEXTPOSITION OUTSIDE ---
                 fig_monthly = px.bar(
                     monthly_counts, 
                     x='Bitiş Ayı Adı', 
                     y='Sayi', 
-                    text='Sayi', # Sayıyı grafiğe ekle
+                    text='Sayi',
                     title=f"{selected_year} Aylık Dağılım", 
                     color='Sayi'
                 )
-                # Sayıları çubuğun üstüne taşı ve büyüt
                 fig_monthly.update_traces(textposition='outside', textfont=dict(size=14, color='black'))
-                # Y eksenini biraz genişlet ki sayılar kesilmesin
                 max_val = monthly_counts['Sayi'].max()
                 fig_monthly.update_layout(yaxis=dict(range=[0, max_val * 1.2]), clickmode='event+select')
-                # -----------------------------------------------
                 
                 selected_event = st.plotly_chart(fig_monthly, use_container_width=True, on_select="rerun")
             
